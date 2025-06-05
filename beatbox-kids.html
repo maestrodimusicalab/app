@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beatbox Kids by MaestrodiMusica.com</title>
+    <link href="https://fonts.googleapis.com/css2?family=Schoolbell&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.36/Tone.min.js"></script>
+    <style>
+        .beatbox-app {
+            font-family: 'Schoolbell', cursive;
+            background-color: transparent;
+            padding: 20px;
+            text-align: center;
+            max-width: 900px;
+            margin: 0 auto;
+            user-select: none;
+        }
+        
+        .beatbox-app h1 {
+            color: #000;
+            margin: 0 0 20px 0;
+            font-size: 2.2rem;
+            text-shadow: 2px 2px 0 rgba(255,198,0,0.3);
+        }
+        
+        .beatbox-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .beatbox-palette {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+            min-width: 140px;
+            background-color: #f5f5f5;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .palette-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        
+        .palette-item:hover {
+            background-color: rgba(255,198,0,0.2);
+        }
+        
+        .quarter-note {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #000;
+            cursor: grab;
+            flex-shrink: 0;
+        }
+        
+        .eighth-notes {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            cursor: grab;
+            flex-shrink: 0;
+        }
+        
+        .eighth-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #000;
+            position: relative;
+        }
+        
+        .eighth-dot::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: white;
+            transform: translateX(-50%);
+        }
+        
+        .note-label {
+            font-size: 1rem;
+            white-space: nowrap;
+        }
+        
+        .beatbox-grid {
+            display: grid;
+            grid-template-columns: repeat(16, 50px);
+            gap: 5px;
+        }
+        
+        .beatbox-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .instrument-label {
+            width: 80px;
+            text-align: right;
+            margin-right: 10px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .beatbox-cell {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        
+        .beatbox-cell:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .beatbox-cell.active {
+            background-color: #ffc600;
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(255,198,0,0.5);
+        }
+        
+        .beat-number {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: bold;
+            font-size: 1rem;
+            color: #555;
+        }
+        
+        .beat-special {
+            background-color: rgba(255, 158, 0, 0.1);
+        }
+        
+        .beatbox-progress {
+            width: 100%;
+            height: 12px;
+            background-color: #000;
+            margin: 30px 0;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #ffc600;
+            transition: width 0.1s;
+        }
+        
+        .beatbox-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .beatbox-btn {
+            background-color: #ffc600;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-family: 'Schoolbell', cursive;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .beatbox-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .beatbox-btn:active {
+            transform: translateY(0);
+        }
+        
+        .bpm-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #f5f5f5;
+            padding: 8px 15px;
+            border-radius: 30px;
+        }
+        
+        .bpm-control label {
+            font-weight: bold;
+        }
+        
+        .bpm-control input {
+            width: 60px;
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
+        }
+        
+        @media (max-width: 768px) {
+            .beatbox-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .beatbox-palette {
+                width: 100%;
+                flex-direction: row;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .beatbox-grid {
+                grid-template-columns: repeat(16, 40px);
+            }
+            
+            .beatbox-cell {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .instrument-label {
+                width: 70px;
+                font-size: 1rem;
+            }
+            
+            .quarter-note {
+                width: 28px;
+                height: 28px;
+            }
+            
+            .eighth-dot {
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                background-color: #000;
+                position: relative;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .eighth-dot::before {
+                content: '';
+                width: 2px;
+                height: 100%;
+                background-color: #fff;
+            }
+            
+            .note-label {
+                font-size: 0.9rem;
+            }
+            
+            .beatbox-controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="beatbox-app">
+        
+        <div class="beatbox-container">
+            <div class="beatbox-palette">
+                <div class="palette-item">
+                    <div class="quarter-note" draggable="true" data-type="quarter"></div>
+                    <div class="note-label">Semiminima (1/4)</div>
+                </div>
+                <div class="palette-item">
+                    <div class="eighth-notes" draggable="true" data-type="eighth">
+                        <span class="eighth-dot"></span>
+                        <span class="eighth-dot"></span>
+                    </div>
+                    <div class="note-label">Crome (1/8)</div>
+                </div>
+            </div>
+            
+            <div class="beatbox-grid-container">
+                <div class="beatbox-row">
+                    <div class="instrument-label">Kick</div>
+                    <div class="beatbox-grid" data-inst="0"></div>
+                </div>
+                <div class="beatbox-row">
+                    <div class="instrument-label">Snare</div>
+                    <div class="beatbox-grid" data-inst="1"></div>
+                </div>
+                <div class="beatbox-row">
+                    <div class="instrument-label">Hi-hat</div>
+                    <div class="beatbox-grid" data-inst="2"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="beatbox-progress">
+            <div class="progress-bar"></div>
+        </div>
+        
+        <div class="beatbox-controls">
+            <button class="beatbox-btn" id="playBtn">▶️ Play</button>
+            <div class="bpm-control">
+                <label for="bpm">BPM:</label>
+                <input type="number" id="bpm" value="120" min="60" max="200">
+            </div>
+            <button class="beatbox-btn" id="clearBtn">🗑️ Cancella</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Configurazione audio
+            const instruments = ['kick', 'snare', 'hihat'];
+            const audioFiles = {
+                'kick': 'http://maestrodimusica.altervista.org/sounds/drumkit/kick.mp3',
+                'snare': 'http://maestrodimusica.altervista.org/sounds/drumkit/snare.mp3',
+                'hihat': 'http://maestrodimusica.altervista.org/sounds/drumkit/hihat.mp3'
+            };
+            const players = new Tone.Players(audioFiles).toDestination();
+            
+            // Stato dell'app
+            const gridState = Array(3).fill().map(() => Array(16).fill(null));
+            let isPlaying = false;
+            let currentStep = 0;
+            
+            // Inizializzazione griglia
+            document.querySelectorAll('.beatbox-grid').forEach((grid, rowIdx) => {
+                for (let colIdx = 0; colIdx < 16; colIdx++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'beatbox-cell';
+                    cell.dataset.row = rowIdx;
+                    cell.dataset.col = colIdx;
+                    
+                    if (rowIdx === 0) {
+                        const number = document.createElement('div');
+                        number.className = 'beat-number';
+                        number.textContent = (colIdx % 4) + 1;
+                        cell.appendChild(number);
+                    }
+                    
+                    if ([0, 4, 8, 12].includes(colIdx)) {
+                        cell.classList.add('beat-special');
+                    }
+                    
+                    cell.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        cell.style.transform = 'scale(1.05)';
+                    });
+                    
+                    cell.addEventListener('dragleave', () => {
+                        cell.style.transform = '';
+                    });
+                    
+                    cell.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        cell.style.transform = '';
+                        addNoteToCell(cell, e.dataTransfer.getData('noteType'));
+                    });
+                    
+                    cell.addEventListener('dblclick', () => clearCell(cell));
+                    
+                    grid.appendChild(cell);
+                }
+            });
+            
+            // Drag and drop
+            document.querySelectorAll('[draggable="true"]').forEach(el => {
+                el.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('noteType', e.target.dataset.type);
+                    e.target.style.opacity = '0.5';
+                });
+                
+                el.addEventListener('dragend', (e) => {
+                    e.target.style.opacity = '1';
+                });
+            });
+            
+            // Sequencer
+            const sequencer = new Tone.Loop((time) => {
+                gridState.forEach((row, rowIdx) => {
+                    const noteType = row[currentStep];
+                    if (noteType === 'quarter') {
+                        players.player(instruments[rowIdx]).start(time);
+                    } else if (noteType === 'eighth') {
+                        players.player(instruments[rowIdx]).start(time);
+                        players.player(instruments[rowIdx]).start(time + Tone.Time('8n').toSeconds());
+                    }
+                });
+                
+                updateUI();
+                currentStep = (currentStep + 1) % 16;
+            }, '4n');
+            
+            // Controlli
+            const playBtn = document.getElementById('playBtn');
+            const bpmInput = document.getElementById('bpm');
+            const clearBtn = document.getElementById('clearBtn');
+            
+            playBtn.addEventListener('click', togglePlayback);
+            bpmInput.addEventListener('change', updateBPM);
+            clearBtn.addEventListener('click', clearAll);
+            
+            // Funzioni
+            function addNoteToCell(cell, noteType) {
+                const rowIdx = +cell.dataset.row;
+                const colIdx = +cell.dataset.col;
+                
+                cell.innerHTML = '';
+                
+                if (rowIdx === 0) {
+                    const number = document.createElement('div');
+                    number.className = 'beat-number';
+                    number.textContent = (colIdx % 4) + 1;
+                    cell.appendChild(number);
+                }
+                
+                if (noteType === 'quarter') {
+                    const note = document.createElement('div');
+                    note.className = 'quarter-note';
+                    cell.appendChild(note);
+                } else {
+                    const notes = document.createElement('div');
+                    notes.className = 'eighth-notes';
+                    notes.innerHTML = '<span class="eighth-dot"></span><span class="eighth-dot"></span>';
+                    cell.appendChild(notes);
+                }
+                
+                gridState[rowIdx][colIdx] = noteType;
+                
+                // Feedback visivo
+                cell.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    cell.style.transform = '';
+                }, 200);
+            }
+            
+            function clearCell(cell) {
+                const rowIdx = +cell.dataset.row;
+                const colIdx = +cell.dataset.col;
+                
+                cell.innerHTML = '';
+                gridState[rowIdx][colIdx] = null;
+                
+                if (rowIdx === 0) {
+                    const number = document.createElement('div');
+                    number.className = 'beat-number';
+                    number.textContent = (colIdx % 4) + 1;
+                    cell.appendChild(number);
+                }
+                
+                // Feedback visivo
+                cell.style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    cell.style.transform = '';
+                }, 200);
+            }
+            
+            function updateUI() {
+                document.querySelector('.progress-bar').style.width = `${(currentStep / 16) * 100}%`;
+                
+                document.querySelectorAll('.beatbox-cell').forEach(cell => {
+                    cell.classList.remove('active');
+                    if (+cell.dataset.col === currentStep) {
+                        cell.classList.add('active');
+                    }
+                });
+            }
+            
+            function togglePlayback() {
+                if (!isPlaying) {
+                    Tone.start().then(() => {
+                        Tone.Transport.bpm.value = bpmInput.value;
+                        sequencer.start(0);
+                        Tone.Transport.start();
+                        playBtn.textContent = '⏸️ Stop';
+                        isPlaying = true;
+                    }).catch(err => {
+                        console.error('Audio error:', err);
+                        alert('Errore nell\'inizializzazione audio. Ricarica la pagina e riprova.');
+                    });
+                } else {
+                    sequencer.stop();
+                    Tone.Transport.stop();
+                    playBtn.textContent = '▶️ Play';
+                    isPlaying = false;
+                    currentStep = 0;
+                    updateUI();
+                }
+            }
+            
+            function updateBPM() {
+                const bpm = Math.min(Math.max(this.value, 60), 200);
+                this.value = bpm;
+                Tone.Transport.bpm.value = bpm;
+            }
+            
+            function clearAll() {
+                if (confirm('Cancellare tutta la griglia?')) {
+                    document.querySelectorAll('.beatbox-cell').forEach(cell => clearCell(cell));
+                }
+            }
+        });
+    </script>
+</body>
+</html>
