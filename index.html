@@ -271,6 +271,72 @@
                 flex-direction: column;
                 gap: 15px;
             }
+
+            /* [Tutti gli altri stili originali rimangono uguali] */
+        
+        /* Stili per il modal di conferma */
+        .confirm-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .confirm-overlay.active {
+            display: flex;
+        }
+        
+        .confirm-box {
+            background-color: white;
+            padding: 25px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 350px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        .confirm-message {
+            font-size: 1.2rem;
+            margin-bottom: 25px;
+            color: #333;
+        }
+        
+        .confirm-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .confirm-btn {
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-family: 'Schoolbell', cursive;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        
+        .confirm-btn-yes {
+            background-color: #ff5555;
+            color: white;
+        }
+        
+        .confirm-btn-no {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        
+        .confirm-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
         }
     </style>
 </head>
@@ -323,6 +389,17 @@
         </div>
     </div>
 
+    <!-- Modal di conferma personalizzato -->
+    <div class="confirm-overlay" id="confirmOverlay">
+        <div class="confirm-box">
+            <div class="confirm-message">Vuoi davvero cancellare tutta la griglia?</div>
+            <div class="confirm-buttons">
+                <button class="confirm-btn confirm-btn-yes" id="confirmYes">Sì, cancella</button>
+                <button class="confirm-btn confirm-btn-no" id="confirmNo">No, annulla</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Configurazione audio
@@ -337,10 +414,7 @@
             const players = new Tone.Players({
                 urls: audioFiles,
                 onload: function() {
-                    console.log('Audio caricato');
-                },
-                onerror: function(error) {
-                    console.error('Errore caricamento audio:', error);
+                    console.log('Audio caricato correttamente');
                 }
             }).toDestination();
             
@@ -348,6 +422,14 @@
             const gridState = Array(3).fill().map(() => Array(16).fill(null));
             let isPlaying = false;
             let currentStep = 0;
+            
+            // Elementi UI
+            const playBtn = document.getElementById('playBtn');
+            const bpmInput = document.getElementById('bpm');
+            const clearBtn = document.getElementById('clearBtn');
+            const confirmOverlay = document.getElementById('confirmOverlay');
+            const confirmYes = document.getElementById('confirmYes');
+            const confirmNo = document.getElementById('confirmNo');
             
             // Inizializzazione griglia
             function initializeGrid() {
@@ -371,7 +453,6 @@
                             cell.classList.add('beat-special');
                         }
                         
-                        // Aggiungi eventi
                         cell.addEventListener('click', handleCellClick);
                         cell.addEventListener('dragover', handleDragOver);
                         cell.addEventListener('dragleave', handleDragLeave);
@@ -382,37 +463,11 @@
                 });
             }
             
-            // Inizializza elementi trascinabili
-            function initializeDraggables() {
-                document.querySelectorAll('.palette-item').forEach(item => {
-                    const noteType = item.dataset.type;
-                    const draggableElement = item.querySelector('[draggable="true"]');
-                    
-                    draggableElement.addEventListener('dragstart', function(e) {
-                        e.dataTransfer.setData('noteType', noteType);
-                        this.style.opacity = '0.5';
-                    });
-                    
-                    draggableElement.addEventListener('dragend', function() {
-                        this.style.opacity = '1';
-                    });
-                    
-                    // Aggiungi click per mobile
-                    item.addEventListener('click', function() {
-                        const noteType = this.dataset.type;
-                        document.activeNoteType = noteType;
-                        document.querySelectorAll('.beatbox-cell').forEach(cell => {
-                            cell.classList.add('note-ready');
-                        });
-                    });
-                });
-            }
-            
             // Gestione eventi
             function handleCellClick(e) {
                 if (document.activeNoteType) {
                     addNoteToCell(this, document.activeNoteType);
-                } else if (e.detail === 2) { // Doppio click
+                } else if (e.detail === 2) {
                     clearCell(this);
                 }
             }
@@ -438,10 +493,8 @@
                 const rowIdx = parseInt(cell.dataset.row);
                 const colIdx = parseInt(cell.dataset.col);
                 
-                // Pulisci la cella
                 cell.innerHTML = '';
                 
-                // Aggiungi numero di beat se prima riga
                 if (rowIdx === 0) {
                     const number = document.createElement('div');
                     number.className = 'beat-number';
@@ -449,7 +502,6 @@
                     cell.appendChild(number);
                 }
                 
-                // Aggiungi nota
                 if (noteType === 'quarter') {
                     const note = document.createElement('div');
                     note.className = 'quarter-note';
@@ -461,24 +513,16 @@
                     cell.appendChild(notes);
                 }
                 
-                // Aggiorna stato
                 gridState[rowIdx][colIdx] = noteType;
-                
-                // Feedback visivo
-                cell.style.transform = 'scale(1.1)';
-                setTimeout(() => {
-                    cell.style.transform = '';
-                }, 200);
+                animateCell(cell, 1.1);
             }
             
             function clearCell(cell) {
                 const rowIdx = parseInt(cell.dataset.row);
                 const colIdx = parseInt(cell.dataset.col);
                 
-                // Pulisci la cella
                 cell.innerHTML = '';
                 
-                // Aggiungi numero di beat se prima riga
                 if (rowIdx === 0) {
                     const number = document.createElement('div');
                     number.className = 'beat-number';
@@ -486,11 +530,12 @@
                     cell.appendChild(number);
                 }
                 
-                // Aggiorna stato
                 gridState[rowIdx][colIdx] = null;
-                
-                // Feedback visivo
-                cell.style.transform = 'scale(0.9)';
+                animateCell(cell, 0.9);
+            }
+            
+            function animateCell(cell, scale) {
+                cell.style.transform = `scale(${scale})`;
                 setTimeout(() => {
                     cell.style.transform = '';
                 }, 200);
@@ -523,14 +568,19 @@
                 currentStep = (currentStep + 1) % 16;
             }, '4n');
             
-            // Controlli
-            const playBtn = document.getElementById('playBtn');
-            const bpmInput = document.getElementById('bpm');
-            const clearBtn = document.getElementById('clearBtn');
-            
+            // Gestione pulsanti
             playBtn.addEventListener('click', togglePlayback);
             bpmInput.addEventListener('change', updateBPM);
-            clearBtn.addEventListener('click', clearAll);
+            clearBtn.addEventListener('click', showClearConfirmation);
+            
+            confirmYes.addEventListener('click', function() {
+                confirmOverlay.classList.remove('active');
+                clearAllCells();
+            });
+            
+            confirmNo.addEventListener('click', function() {
+                confirmOverlay.classList.remove('active');
+            });
             
             // Funzioni controllo
             function togglePlayback() {
@@ -542,8 +592,7 @@
                         playBtn.textContent = '⏸️ Stop';
                         isPlaying = true;
                     }).catch(function(err) {
-                        console.error('Audio error:', err);
-                        alert('Errore nell\'inizializzazione audio. Ricarica la pagina e riprova.');
+                        console.error('Errore audio:', err);
                     });
                 } else {
                     sequencer.stop();
@@ -563,40 +612,55 @@
                 }
             }
             
-            function clearAll() {
-                if (confirm('Cancellare tutta la griglia?')) {
-                    // Resetta lo stato
-                    for (let i = 0; i < gridState.length; i++) {
-                        gridState[i] = Array(16).fill(null);
-                    }
-                    
-                    // Pulisci tutte le celle
-                    document.querySelectorAll('.beatbox-cell').forEach(function(cell) {
-                        const rowIdx = parseInt(cell.dataset.row);
-                        const colIdx = parseInt(cell.dataset.col);
-                        cell.innerHTML = '';
-                        
-                        if (rowIdx === 0) {
-                            const number = document.createElement('div');
-                            number.className = 'beat-number';
-                            number.textContent = (colIdx % 4) + 1;
-                            cell.appendChild(number);
-                        }
-                    });
-                }
+            function showClearConfirmation() {
+                confirmOverlay.classList.add('active');
             }
             
-            // Inizializza l'app
-            initializeGrid();
-            initializeDraggables();
+            function clearAllCells() {
+                for (let i = 0; i < gridState.length; i++) {
+                    gridState[i] = Array(16).fill(null);
+                }
+                
+                document.querySelectorAll('.beatbox-cell').forEach(function(cell) {
+                    const rowIdx = parseInt(cell.dataset.row);
+                    const colIdx = parseInt(cell.dataset.col);
+                    cell.innerHTML = '';
+                    
+                    if (rowIdx === 0) {
+                        const number = document.createElement('div');
+                        number.className = 'beat-number';
+                        number.textContent = (colIdx % 4) + 1;
+                        cell.appendChild(number);
+                    }
+                });
+            }
             
-            // Resetta lo stato attivo quando si clicca fuori
+            // Inizializzazione
+            initializeGrid();
+            
+            // Setup elementi trascinabili
+            document.querySelectorAll('.palette-item').forEach(item => {
+                const noteType = item.dataset.type;
+                const draggableElement = item.querySelector('[draggable="true"]');
+                
+                draggableElement.addEventListener('dragstart', function(e) {
+                    e.dataTransfer.setData('noteType', noteType);
+                    this.style.opacity = '0.5';
+                });
+                
+                draggableElement.addEventListener('dragend', function() {
+                    this.style.opacity = '1';
+                });
+                
+                item.addEventListener('click', function() {
+                    document.activeNoteType = this.dataset.type;
+                });
+            });
+            
+            // Click esterno per deselezionare
             document.addEventListener('click', function(e) {
                 if (!e.target.closest('.palette-item') && !e.target.closest('.beatbox-cell')) {
                     delete document.activeNoteType;
-                    document.querySelectorAll('.beatbox-cell').forEach(cell => {
-                        cell.classList.remove('note-ready');
-                    });
                 }
             });
         });
