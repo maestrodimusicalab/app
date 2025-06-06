@@ -49,6 +49,7 @@
             padding: 5px;
             border-radius: 5px;
             transition: background-color 0.2s;
+            cursor: pointer;
         }
         
         .palette-item:hover {
@@ -128,6 +129,7 @@
             justify-content: center;
             align-items: center;
             transition: all 0.2s;
+            cursor: pointer;
         }
         
         .beatbox-cell:hover {
@@ -259,19 +261,6 @@
             .eighth-dot {
                 width: 16px;
                 height: 16px;
-                border-radius: 50%;
-                background-color: #000;
-                position: relative;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-
-            .eighth-dot::before {
-                content: '';
-                width: 2px;
-                height: 100%;
-                background-color: #fff;
             }
             
             .note-label {
@@ -287,15 +276,16 @@
 </head>
 <body>
     <div class="beatbox-app">
+        <h1>Beatbox Kids</h1>
         
         <div class="beatbox-container">
             <div class="beatbox-palette">
-                <div class="palette-item">
-                    <div class="quarter-note" draggable="true" data-type="quarter"></div>
+                <div class="palette-item" data-type="quarter">
+                    <div class="quarter-note" draggable="true"></div>
                     <div class="note-label">Semiminima (1/4)</div>
                 </div>
-                <div class="palette-item">
-                    <div class="eighth-notes" draggable="true" data-type="eighth">
+                <div class="palette-item" data-type="eighth">
+                    <div class="eighth-notes" draggable="true">
                         <span class="eighth-dot"></span>
                         <span class="eighth-dot"></span>
                     </div>
@@ -334,7 +324,7 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', function() {
             // Configurazione audio
             const instruments = ['kick', 'snare', 'hihat'];
             const audioFiles = {
@@ -342,7 +332,17 @@
                 'snare': 'https://maestrodimusicalab.github.io/beatbox-kids/sounds/snare.mp3',
                 'hihat': 'https://maestrodimusicalab.github.io/beatbox-kids/sounds/hihat.mp3'
             };
-            const players = new Tone.Players(audioFiles).toDestination();
+            
+            // Inizializza Tone.js
+            const players = new Tone.Players({
+                urls: audioFiles,
+                onload: function() {
+                    console.log('Audio caricato');
+                },
+                onerror: function(error) {
+                    console.error('Errore caricamento audio:', error);
+                }
+            }).toDestination();
             
             // Stato dell'app
             const gridState = Array(3).fill().map(() => Array(16).fill(null));
@@ -350,59 +350,165 @@
             let currentStep = 0;
             
             // Inizializzazione griglia
-            document.querySelectorAll('.beatbox-grid').forEach((grid, rowIdx) => {
-                for (let colIdx = 0; colIdx < 16; colIdx++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'beatbox-cell';
-                    cell.dataset.row = rowIdx;
-                    cell.dataset.col = colIdx;
+            function initializeGrid() {
+                document.querySelectorAll('.beatbox-grid').forEach((grid, rowIdx) => {
+                    grid.innerHTML = '';
                     
-                    if (rowIdx === 0) {
-                        const number = document.createElement('div');
-                        number.className = 'beat-number';
-                        number.textContent = (colIdx % 4) + 1;
-                        cell.appendChild(number);
+                    for (let colIdx = 0; colIdx < 16; colIdx++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'beatbox-cell';
+                        cell.dataset.row = rowIdx;
+                        cell.dataset.col = colIdx;
+                        
+                        if (rowIdx === 0) {
+                            const number = document.createElement('div');
+                            number.className = 'beat-number';
+                            number.textContent = (colIdx % 4) + 1;
+                            cell.appendChild(number);
+                        }
+                        
+                        if ([0, 4, 8, 12].includes(colIdx)) {
+                            cell.classList.add('beat-special');
+                        }
+                        
+                        // Aggiungi eventi
+                        cell.addEventListener('click', handleCellClick);
+                        cell.addEventListener('dragover', handleDragOver);
+                        cell.addEventListener('dragleave', handleDragLeave);
+                        cell.addEventListener('drop', handleDrop);
+                        
+                        grid.appendChild(cell);
                     }
-                    
-                    if ([0, 4, 8, 12].includes(colIdx)) {
-                        cell.classList.add('beat-special');
-                    }
-                    
-                    cell.addEventListener('dragover', (e) => {
-                        e.preventDefault();
-                        cell.style.transform = 'scale(1.05)';
-                    });
-                    
-                    cell.addEventListener('dragleave', () => {
-                        cell.style.transform = '';
-                    });
-                    
-                    cell.addEventListener('drop', (e) => {
-                        e.preventDefault();
-                        cell.style.transform = '';
-                        addNoteToCell(cell, e.dataTransfer.getData('noteType'));
-                    });
-                    
-                    cell.addEventListener('dblclick', () => clearCell(cell));
-                    
-                    grid.appendChild(cell);
-                }
-            });
+                });
+            }
             
-            // Drag and drop
-            document.querySelectorAll('[draggable="true"]').forEach(el => {
-                el.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('noteType', e.target.dataset.type);
-                    e.target.style.opacity = '0.5';
+            // Inizializza elementi trascinabili
+            function initializeDraggables() {
+                document.querySelectorAll('.palette-item').forEach(item => {
+                    const noteType = item.dataset.type;
+                    const draggableElement = item.querySelector('[draggable="true"]');
+                    
+                    draggableElement.addEventListener('dragstart', function(e) {
+                        e.dataTransfer.setData('noteType', noteType);
+                        this.style.opacity = '0.5';
+                    });
+                    
+                    draggableElement.addEventListener('dragend', function() {
+                        this.style.opacity = '1';
+                    });
+                    
+                    // Aggiungi click per mobile
+                    item.addEventListener('click', function() {
+                        const noteType = this.dataset.type;
+                        document.activeNoteType = noteType;
+                        document.querySelectorAll('.beatbox-cell').forEach(cell => {
+                            cell.classList.add('note-ready');
+                        });
+                    });
                 });
+            }
+            
+            // Gestione eventi
+            function handleCellClick(e) {
+                if (document.activeNoteType) {
+                    addNoteToCell(this, document.activeNoteType);
+                } else if (e.detail === 2) { // Doppio click
+                    clearCell(this);
+                }
+            }
+            
+            function handleDragOver(e) {
+                e.preventDefault();
+                this.style.transform = 'scale(1.05)';
+            }
+            
+            function handleDragLeave() {
+                this.style.transform = '';
+            }
+            
+            function handleDrop(e) {
+                e.preventDefault();
+                this.style.transform = '';
+                const noteType = e.dataTransfer.getData('noteType');
+                addNoteToCell(this, noteType);
+            }
+            
+            // Funzioni principali
+            function addNoteToCell(cell, noteType) {
+                const rowIdx = parseInt(cell.dataset.row);
+                const colIdx = parseInt(cell.dataset.col);
                 
-                el.addEventListener('dragend', (e) => {
-                    e.target.style.opacity = '1';
+                // Pulisci la cella
+                cell.innerHTML = '';
+                
+                // Aggiungi numero di beat se prima riga
+                if (rowIdx === 0) {
+                    const number = document.createElement('div');
+                    number.className = 'beat-number';
+                    number.textContent = (colIdx % 4) + 1;
+                    cell.appendChild(number);
+                }
+                
+                // Aggiungi nota
+                if (noteType === 'quarter') {
+                    const note = document.createElement('div');
+                    note.className = 'quarter-note';
+                    cell.appendChild(note);
+                } else if (noteType === 'eighth') {
+                    const notes = document.createElement('div');
+                    notes.className = 'eighth-notes';
+                    notes.innerHTML = '<span class="eighth-dot"></span><span class="eighth-dot"></span>';
+                    cell.appendChild(notes);
+                }
+                
+                // Aggiorna stato
+                gridState[rowIdx][colIdx] = noteType;
+                
+                // Feedback visivo
+                cell.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    cell.style.transform = '';
+                }, 200);
+            }
+            
+            function clearCell(cell) {
+                const rowIdx = parseInt(cell.dataset.row);
+                const colIdx = parseInt(cell.dataset.col);
+                
+                // Pulisci la cella
+                cell.innerHTML = '';
+                
+                // Aggiungi numero di beat se prima riga
+                if (rowIdx === 0) {
+                    const number = document.createElement('div');
+                    number.className = 'beat-number';
+                    number.textContent = (colIdx % 4) + 1;
+                    cell.appendChild(number);
+                }
+                
+                // Aggiorna stato
+                gridState[rowIdx][colIdx] = null;
+                
+                // Feedback visivo
+                cell.style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    cell.style.transform = '';
+                }, 200);
+            }
+            
+            function updateUI() {
+                document.querySelector('.progress-bar').style.width = `${(currentStep / 16) * 100}%`;
+                
+                document.querySelectorAll('.beatbox-cell').forEach(cell => {
+                    cell.classList.remove('active');
+                    if (parseInt(cell.dataset.col) === currentStep) {
+                        cell.classList.add('active');
+                    }
                 });
-            });
+            }
             
             // Sequencer
-            const sequencer = new Tone.Loop((time) => {
+            const sequencer = new Tone.Loop(function(time) {
                 gridState.forEach((row, rowIdx) => {
                     const noteType = row[currentStep];
                     if (noteType === 'quarter') {
@@ -426,81 +532,16 @@
             bpmInput.addEventListener('change', updateBPM);
             clearBtn.addEventListener('click', clearAll);
             
-            // Funzioni
-            function addNoteToCell(cell, noteType) {
-                const rowIdx = +cell.dataset.row;
-                const colIdx = +cell.dataset.col;
-                
-                cell.innerHTML = '';
-                
-                if (rowIdx === 0) {
-                    const number = document.createElement('div');
-                    number.className = 'beat-number';
-                    number.textContent = (colIdx % 4) + 1;
-                    cell.appendChild(number);
-                }
-                
-                if (noteType === 'quarter') {
-                    const note = document.createElement('div');
-                    note.className = 'quarter-note';
-                    cell.appendChild(note);
-                } else {
-                    const notes = document.createElement('div');
-                    notes.className = 'eighth-notes';
-                    notes.innerHTML = '<span class="eighth-dot"></span><span class="eighth-dot"></span>';
-                    cell.appendChild(notes);
-                }
-                
-                gridState[rowIdx][colIdx] = noteType;
-                
-                // Feedback visivo
-                cell.style.transform = 'scale(1.1)';
-                setTimeout(() => {
-                    cell.style.transform = '';
-                }, 200);
-            }
-            
-            function clearCell(cell) {
-                const rowIdx = +cell.dataset.row;
-                const colIdx = +cell.dataset.col;
-                
-                cell.innerHTML = '';
-                gridState[rowIdx][colIdx] = null;
-                
-                if (rowIdx === 0) {
-                    const number = document.createElement('div');
-                    number.className = 'beat-number';
-                    number.textContent = (colIdx % 4) + 1;
-                    cell.appendChild(number);
-                }
-                
-                // Feedback visivo
-                cell.style.transform = 'scale(0.9)';
-                setTimeout(() => {
-                    cell.style.transform = '';
-                }, 200);
-            }
-            
-            function updateUI() {
-                document.querySelector('.progress-bar').style.width = `${(currentStep / 16) * 100}%`;
-                
-                document.querySelectorAll('.beatbox-cell').forEach(cell => {
-                    cell.classList.remove('active');
-                    if (+cell.dataset.col === currentStep) {
-                        cell.classList.add('active');
-                    }
-                });
-            }
-            
+            // Funzioni controllo
             function togglePlayback() {
                 if (!isPlaying) {
-                    Tone.start().then(() => {
+                    Tone.start().then(function() {
                         Tone.Transport.bpm.value = bpmInput.value;
                         sequencer.start(0);
                         Tone.Transport.start();
                         playBtn.textContent = '⏸️ Stop';
                         isPlaying = true;
-                    }).catch(err => {
+                    }).catch(function(err) {
                         console.error('Audio error:', err);
                         alert('Errore nell\'inizializzazione audio. Ricarica la pagina e riprova.');
                     });
@@ -515,16 +556,49 @@
             }
             
             function updateBPM() {
-                const bpm = Math.min(Math.max(this.value, 60), 200);
+                const bpm = Math.min(Math.max(parseInt(this.value), 60), 200);
                 this.value = bpm;
-                Tone.Transport.bpm.value = bpm;
+                if (!isNaN(bpm)) {
+                    Tone.Transport.bpm.value = bpm;
+                }
             }
             
             function clearAll() {
                 if (confirm('Cancellare tutta la griglia?')) {
-                    document.querySelectorAll('.beatbox-cell').forEach(cell => clearCell(cell));
+                    // Resetta lo stato
+                    for (let i = 0; i < gridState.length; i++) {
+                        gridState[i] = Array(16).fill(null);
+                    }
+                    
+                    // Pulisci tutte le celle
+                    document.querySelectorAll('.beatbox-cell').forEach(function(cell) {
+                        const rowIdx = parseInt(cell.dataset.row);
+                        const colIdx = parseInt(cell.dataset.col);
+                        cell.innerHTML = '';
+                        
+                        if (rowIdx === 0) {
+                            const number = document.createElement('div');
+                            number.className = 'beat-number';
+                            number.textContent = (colIdx % 4) + 1;
+                            cell.appendChild(number);
+                        }
+                    });
                 }
             }
+            
+            // Inizializza l'app
+            initializeGrid();
+            initializeDraggables();
+            
+            // Resetta lo stato attivo quando si clicca fuori
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.palette-item') && !e.target.closest('.beatbox-cell')) {
+                    delete document.activeNoteType;
+                    document.querySelectorAll('.beatbox-cell').forEach(cell => {
+                        cell.classList.remove('note-ready');
+                    });
+                }
+            });
         });
     </script>
 </body>
